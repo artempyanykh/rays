@@ -1,0 +1,6 @@
+(library
+ (name rays_test)
+ (libraries rays)
+ (inline_tests)
+ (preprocess
+  (pps ppx_expect)))
