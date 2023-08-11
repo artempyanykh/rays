@@ -1,4 +1,5 @@
 open Stdlib.StdLabels
+module F = Format
 
 module Pixel : sig
   type t = private int
@@ -8,7 +9,7 @@ module Pixel : sig
   val r : t -> int
   val g : t -> int
   val b : t -> int
-  val pp_ppm : Format.formatter -> t -> unit
+  val pp_ppm : F.formatter -> t -> unit
   val to_string_ppm : t -> string
 end = struct
   type t = int
@@ -24,8 +25,8 @@ end = struct
   let r t = (t lsr 16) land 255
   let g t = (t lsr 8) land 255
   let b t = t land 255
-  let pp_ppm fmt t = Format.fprintf fmt "%3d %3d %3d" (r t) (g t) (b t)
-  let to_string_ppm t = Format.asprintf "%a" pp_ppm t
+  let pp_ppm fmt t = F.fprintf fmt "%3d %3d %3d" (r t) (g t) (b t)
+  let to_string_ppm t = F.asprintf "%a" pp_ppm t
 end
 
 module Image = struct
@@ -43,18 +44,10 @@ module Image = struct
   let pp_ppm fmt { pixels } =
     let num_rows = Array.length pixels in
     let num_cols = Array.length pixels.(0) in
-    Format.fprintf fmt "P3@\n%d %d@\n255@\n" num_cols num_rows;
-    (* Define printers for a row and a matrix of pixels *)
-    let pp_row fmt row =
-      Format.pp_print_seq
-        ~pp_sep:(fun fmt () -> Format.fprintf fmt " ")
-        Pixel.pp_ppm fmt (Array.to_seq row)
-    in
-    let pp_matrix fmt matrix =
-      Format.pp_print_seq
-        ~pp_sep:(fun fmt () -> Format.fprintf fmt "@\n")
-        pp_row fmt (Array.to_seq matrix)
-    in
-
-    pp_matrix fmt pixels
+    F.fprintf fmt "P3@\n%d %d@\n255@\n" num_cols num_rows;
+    for row = 0 to num_rows - 1 do
+      for col = 0 to num_cols - 1 do
+        F.fprintf fmt "%a@\n" Pixel.pp_ppm pixels.(row).(col)
+      done
+    done
 end
