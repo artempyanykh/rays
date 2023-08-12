@@ -5,22 +5,25 @@
 (generate_opam_files true)
 
 (source
- (github username/reponame))
+ (github artempyanykh/rays))
 
-(authors "Author Name")
+(authors "Artem Pianykh")
 
-(maintainers "Maintainer Name")
+(maintainers "Artem Pianykh")
 
-(license LICENSE)
+(license MIT)
 
 (documentation https://url/to/documentation)
 
 (package
  (name rays)
- (synopsis "A short synopsis")
- (description "A longer description")
- (depends ocaml dune)
+ (synopsis "Simple ray tracer in OCaml")
+ (description "An OCaml implementation of 'Ray Tracing in One Weekend'")
+ (depends
+  ocaml
+  dune
+  (ppx_expect :with-test))
  (tags
-  (topics "to describe" your project)))
+  ("ray tracing" graphics)))
 
 ; See the complete stanza docs at https://dune.readthedocs.io/en/stable/dune-files.html#dune-project
