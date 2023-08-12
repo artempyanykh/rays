@@ -9,3 +9,11 @@ switch-setup:
 .PHONY: dev-setup
 dev-setup:
 	opam install ocaml-lsp-server ocamlformat -y 
+
+.PHONY: main-watch
+main-watch:
+	dune exec --watch bin/main.exe
+
+.PHONY: test-watch
+test-watch:
+	dune runtest --watch --auto-promote
