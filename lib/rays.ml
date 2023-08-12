@@ -51,3 +51,100 @@ module Image = struct
       done
     done
 end
+
+module type FIELD = sig
+  type t
+
+  (* Addition operations *)
+  val add : t -> t -> t
+  val add_inv : t -> t
+  val add_id : t
+
+  (* Multiplication operations *)
+  val mul : t -> t -> t
+  val mul_inv : t -> t
+  val mul_id : t
+end
+
+module type VEC_SPACE_CORE = sig
+  module Scalar : FIELD
+
+  type vec
+
+  val vec_add : vec -> vec -> vec
+  val scalar_mul : Scalar.t -> vec -> vec
+end
+
+module type VEC_SPACE = sig
+  include VEC_SPACE_CORE
+
+  val ( + ) : vec -> vec -> vec
+  val ( - ) : vec -> vec -> vec
+  val ( * ) : Scalar.t -> vec -> vec
+  val ( / ) : vec -> Scalar.t -> vec
+end
+
+module Make_vec_space (Core : VEC_SPACE_CORE) = struct
+  include Core
+
+  let ( + ) v1 v2 = vec_add v1 v2
+  let ( * ) a v = scalar_mul a v
+  let ( - ) v1 v2 = vec_add v1 (Scalar.add_inv Scalar.add_id * v2)
+  let ( / ) v a = scalar_mul (Core.Scalar.mul_inv a) v
+end
+
+module Vec3 (Point_core : VEC_SPACE_CORE) : sig
+  include
+    VEC_SPACE
+      with module Scalar = Point_core.Scalar
+       and type vec = Point_core.vec * Point_core.vec * Point_core.vec
+end = struct
+  module Point_space = Make_vec_space (Point_core)
+
+  module Core = struct
+    module Scalar = Point_core.Scalar
+
+    type vec = Point_core.vec * Point_core.vec * Point_core.vec
+
+    let vec_add (v11, v12, v13) (v21, v22, v23) =
+      Point_space.(v11 + v21, v12 + v22, v13 + v23)
+
+    let scalar_mul a (v1, v2, v3) = Point_space.(a * v1, a * v2, a * v3)
+  end
+
+  include Make_vec_space (Core)
+end
+
+module Vec3d = Vec3 (struct
+  module Scalar = struct
+    include Float
+
+    let add_inv t = -.t
+    let add_id = Float.zero
+    let mul_inv t = 1. /. t
+    let mul_id = Float.one
+  end
+
+  type vec = float
+
+  let scalar_mul = ( *. )
+  let vec_add = ( +. )
+end)
+
+module Ray = struct
+  type t = { origin : Vec3d.vec; dir : Vec3d.vec }
+
+  let at scale { origin; dir } = Vec3d.(origin + (scale * dir))
+end
+
+(** Color in the range [0, 1] *)
+module Color = struct
+  include Vec3d
+
+  let to_pixel ((r, g, b) : vec) =
+    let factor = 255.999 in
+    Pixel.create
+      ( int_of_float (factor *. r),
+        int_of_float (factor *. g),
+        int_of_float (factor *. b) )
+end
