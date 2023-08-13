@@ -52,87 +52,47 @@ module Image = struct
     done
 end
 
-module type FIELD = sig
-  type t
+module Vec3d : sig
+  type t = private float * float * float
 
-  (* Addition operations *)
-  val add : t -> t -> t
-  val add_inv : t -> t
-  val add_id : t
-
-  (* Multiplication operations *)
-  val mul : t -> t -> t
-  val mul_inv : t -> t
-  val mul_id : t
-end
-
-module type VEC_SPACE_CORE = sig
-  module Scalar : FIELD
-
-  type vec
-
-  val vec_add : vec -> vec -> vec
-  val scalar_mul : Scalar.t -> vec -> vec
-end
-
-module type VEC_SPACE = sig
-  include VEC_SPACE_CORE
-
-  val ( + ) : vec -> vec -> vec
-  val ( - ) : vec -> vec -> vec
-  val ( * ) : Scalar.t -> vec -> vec
-  val ( / ) : vec -> Scalar.t -> vec
-end
-
-module Make_vec_space (Core : VEC_SPACE_CORE) = struct
-  include Core
-
-  let ( + ) v1 v2 = vec_add v1 v2
-  let ( * ) a v = scalar_mul a v
-  let ( - ) v1 v2 = vec_add v1 (Scalar.add_inv Scalar.add_id * v2)
-  let ( / ) v a = scalar_mul (Core.Scalar.mul_inv a) v
-end
-
-module Vec3 (Point_core : VEC_SPACE_CORE) : sig
-  include
-    VEC_SPACE
-      with module Scalar = Point_core.Scalar
-       and type vec = Point_core.vec * Point_core.vec * Point_core.vec
+  val mk : float * float * float -> t
+  val raw : t -> float * float * float
+  val c1 : t -> float
+  val c2 : t -> float
+  val c3 : t -> float
+  val ( + ) : t -> t -> t
+  val ( - ) : t -> t -> t
+  val ( * ) : float -> t -> t
+  val ( *! ) : int -> t -> t
+  val ( / ) : t -> float -> t
+  val ( /! ) : t -> int -> t
+  val unit : t -> t
 end = struct
-  module Point_space = Make_vec_space (Point_core)
+  type t = float * float * float
 
-  module Core = struct
-    module Scalar = Point_core.Scalar
+  let mk v = v
+  let raw v = v
+  let c1 (v1, _, _) = v1
+  let c2 (_, v2, _) = v2
+  let c3 (_, _, v3) = v3
 
-    type vec = Point_core.vec * Point_core.vec * Point_core.vec
+  let ( + ) (v11, v12, v13) (v21, v22, v23) =
+    (v11 +. v21, v12 +. v22, v13 +. v23)
 
-    let vec_add (v11, v12, v13) (v21, v22, v23) =
-      Point_space.(v11 + v21, v12 + v22, v13 + v23)
+  let ( - ) (v11, v12, v13) (v21, v22, v23) =
+    (v11 -. v21, v12 -. v22, v13 -. v23)
 
-    let scalar_mul a (v1, v2, v3) = Point_space.(a * v1, a * v2, a * v3)
-  end
-
-  include Make_vec_space (Core)
+  let ( * ) s (v1, v2, v3) = (s *. v1, s *. v2, s *. v3)
+  let ( *! ) is v = float_of_int is * v
+  let ( / ) (v1, v2, v3) s = (v1 /. s, v2 /. s, v3 /. s)
+  let ( /! ) v is = v / float_of_int is
+  let length_square (v1, v2, v3) = (v1 *. v1) +. (v2 *. v2) +. (v3 *. v3)
+  let length v = sqrt (length_square v)
+  let unit v = v / length v
 end
-
-module Vec3d = Vec3 (struct
-  module Scalar = struct
-    include Float
-
-    let add_inv t = -.t
-    let add_id = Float.zero
-    let mul_inv t = 1. /. t
-    let mul_id = Float.one
-  end
-
-  type vec = float
-
-  let scalar_mul = ( *. )
-  let vec_add = ( +. )
-end)
 
 module Ray = struct
-  type t = { origin : Vec3d.vec; dir : Vec3d.vec }
+  type t = { origin : Vec3d.t; dir : Vec3d.t }
 
   let at scale { origin; dir } = Vec3d.(origin + (scale * dir))
 end
@@ -141,10 +101,8 @@ end
 module Color = struct
   include Vec3d
 
-  let to_pixel ((r, g, b) : vec) =
+  let to_pixel t =
     let factor = 255.999 in
-    Pixel.create
-      ( int_of_float (factor *. r),
-        int_of_float (factor *. g),
-        int_of_float (factor *. b) )
+    let r, g, b = raw (factor * t) in
+    Pixel.create (int_of_float r, int_of_float g, int_of_float b)
 end

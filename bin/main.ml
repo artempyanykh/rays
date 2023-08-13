@@ -13,7 +13,12 @@ let sample_image () =
   in
   Image.create ~height ~width ~f
 
-let ray_color _ray = (0., 0., 0.)
+let ray_color (ray : Ray.t) =
+  let unit_dir = Vec3d.unit ray.dir in
+  let blend_factor = 0.5 *. (Vec3d.c2 unit_dir +. 1.) in
+  Color.(
+    ((1. -. blend_factor) * mk (1., 1., 1.))
+    + (blend_factor * mk (0.5, 0.7, 1.0)))
 
 let raytraced_image () =
   (* Image params *)
@@ -26,29 +31,27 @@ let raytraced_image () =
   let viewport_width =
     viewport_height *. float_of_int image_width /. float_of_int image_height
   in
-  let camera_center = (0., 0., 0.) in
+  let camera_center = Vec3d.mk (0., 0., 0.) in
   (* Vectors along viewport dimensions *)
-  let viewport_lr = (viewport_width, 0., 0.) in
-  let viewport_ud = (0., -.viewport_height, 0.) in
+  let viewport_lr = Vec3d.mk (viewport_width, 0., 0.) in
+  let viewport_ud = Vec3d.mk (0., -.viewport_height, 0.) in
   (* Delta vectors from pixel to pixel *)
-  let pixel_delta_lr = Vec3d.(viewport_lr / float_of_int image_width) in
-  let pixel_delta_ud = Vec3d.(viewport_ud / float_of_int image_height) in
+  let pixel_delta_lr = Vec3d.(viewport_lr /! image_width) in
+  let pixel_delta_ud = Vec3d.(viewport_ud /! image_height) in
   (* Coord of upper left pixel *)
   let viewport_upper_left =
     Vec3d.(
-      camera_center - (0., 0., focal_length) - (viewport_lr / 2.)
-      - (viewport_ud / 2.))
+      camera_center
+      - mk (0., 0., focal_length)
+      - (viewport_lr / 2.) - (viewport_ud / 2.))
   in
   let pixel00_loc =
     Vec3d.(viewport_upper_left + (0.5 * (pixel_delta_lr + pixel_delta_ud)))
   in
   (* Render *)
-  let render ~row ~col =
+  let render ~(row : int) ~(col : int) =
     let pixel_center =
-      Vec3d.(
-        pixel00_loc
-        + (float_of_int col * pixel_delta_lr)
-        + (float_of_int row * pixel_delta_ud))
+      Vec3d.(pixel00_loc + (col *! pixel_delta_lr) + (row *! pixel_delta_ud))
     in
     let ray_dir = Vec3d.(pixel_center - camera_center) in
     let ray = Ray.{ origin = camera_center; dir = ray_dir } in
