@@ -67,6 +67,7 @@ module Vec3d : sig
   val ( / ) : t -> float -> t
   val ( /! ) : t -> int -> t
   val unit : t -> t
+  val dot : t -> t -> float
 end = struct
   type t = float * float * float
 
@@ -89,10 +90,13 @@ end = struct
   let length_square (v1, v2, v3) = (v1 *. v1) +. (v2 *. v2) +. (v3 *. v3)
   let length v = sqrt (length_square v)
   let unit v = v / length v
+  let dot (a1, a2, a3) (b1, b2, b3) = a1 *. b1 +. a2 *. b2 +. a3 *. b3
 end
 
+module Point3d = Vec3d
+
 module Ray = struct
-  type t = { origin : Vec3d.t; dir : Vec3d.t }
+  type t = { origin : Point3d.t; dir : Vec3d.t }
 
   let at scale { origin; dir } = Vec3d.(origin + (scale * dir))
 end
@@ -105,4 +109,14 @@ module Color = struct
     let factor = 255.999 in
     let r, g, b = raw (factor * t) in
     Pixel.create (int_of_float r, int_of_float g, int_of_float b)
+end
+
+module Shapes = struct
+  let hits_sphere center radius Ray.{origin; dir} =
+    let oc = Vec3d.(origin - center) in
+    let a = Vec3d.dot dir dir in
+    let b = 2.0 *. Vec3d.dot oc dir in
+    let c = Vec3d.dot oc oc -. radius *. radius in
+    let discriminant = b *. b -. 4. *. a *. c in
+    discriminant >= 0.
 end

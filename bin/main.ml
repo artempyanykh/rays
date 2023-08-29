@@ -14,6 +14,10 @@ let sample_image () =
   Image.create ~height ~width ~f
 
 let ray_color (ray : Ray.t) =
+  let sphere_centre = (Vec3d.mk (0., 0., -1.)) in
+  if Shapes.hits_sphere sphere_centre 0.5 ray then
+    Color.mk (1., 0., 0.)
+  else
   let unit_dir = Vec3d.unit ray.dir in
   let blend_factor = 0.5 *. (Vec3d.c2 unit_dir +. 1.) in
   Color.(
@@ -60,13 +64,8 @@ let raytraced_image () =
   Image.create ~height:image_height ~width:image_width ~f:render
 
 let () =
-  let oc = Out_channel.open_text "sample.ppm" in
-  try
-    let fmt = Format.formatter_of_out_channel oc in
-    let img = raytraced_image () in
-    Format.fprintf fmt "%a" Image.pp_ppm img;
-    Out_channel.close oc;
-    Format.printf "Successfuly generated an image@\n"
-  with ex ->
-    Format.eprintf "%s" (Printexc.to_string ex);
-    Out_channel.close_noerr oc
+  let img = raytraced_image () in
+  Out_channel.with_open_text "sample.ppm" (fun oc ->
+      let fmt = Format.formatter_of_out_channel oc in
+      Format.fprintf fmt "%a" Image.pp_ppm img);
+  Format.printf "Successfuly generated an image@\n"
