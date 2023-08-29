@@ -66,6 +66,7 @@ module Vec3d : sig
   val ( *! ) : int -> t -> t
   val ( / ) : t -> float -> t
   val ( /! ) : t -> int -> t
+  val length_square : t -> float
   val unit : t -> t
   val dot : t -> t -> float
 end = struct
@@ -114,9 +115,9 @@ end
 module Shapes = struct
   let hit_sphere center radius Ray.{ origin; dir } =
     let oc = Vec3d.(origin - center) in
-    let a = Vec3d.dot dir dir in
-    let b = 2.0 *. Vec3d.dot oc dir in
-    let c = Vec3d.dot oc oc -. (radius *. radius) in
-    let discriminant = (b *. b) -. (4. *. a *. c) in
-    if discriminant >= 0. then (-.b -. sqrt discriminant) /. 2. /. a else -1.
+    let a = Vec3d.length_square dir in
+    let half_b = Vec3d.dot oc dir in
+    let c = Vec3d.length_square oc -. (radius *. radius) in
+    let discriminant = (half_b *. half_b) -. (a *. c) in
+    if discriminant >= 0. then (-.half_b -. sqrt discriminant) /. a else -1.
 end
