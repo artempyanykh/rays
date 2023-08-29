@@ -90,7 +90,7 @@ end = struct
   let length_square (v1, v2, v3) = (v1 *. v1) +. (v2 *. v2) +. (v3 *. v3)
   let length v = sqrt (length_square v)
   let unit v = v / length v
-  let dot (a1, a2, a3) (b1, b2, b3) = a1 *. b1 +. a2 *. b2 +. a3 *. b3
+  let dot (a1, a2, a3) (b1, b2, b3) = (a1 *. b1) +. (a2 *. b2) +. (a3 *. b3)
 end
 
 module Point3d = Vec3d
@@ -112,11 +112,11 @@ module Color = struct
 end
 
 module Shapes = struct
-  let hits_sphere center radius Ray.{origin; dir} =
+  let hit_sphere center radius Ray.{ origin; dir } =
     let oc = Vec3d.(origin - center) in
     let a = Vec3d.dot dir dir in
     let b = 2.0 *. Vec3d.dot oc dir in
-    let c = Vec3d.dot oc oc -. radius *. radius in
-    let discriminant = b *. b -. 4. *. a *. c in
-    discriminant >= 0.
+    let c = Vec3d.dot oc oc -. (radius *. radius) in
+    let discriminant = (b *. b) -. (4. *. a *. c) in
+    if discriminant >= 0. then (-.b -. sqrt discriminant) /. 2. /. a else -1.
 end

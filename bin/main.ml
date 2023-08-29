@@ -14,15 +14,17 @@ let sample_image () =
   Image.create ~height ~width ~f
 
 let ray_color (ray : Ray.t) =
-  let sphere_centre = (Vec3d.mk (0., 0., -1.)) in
-  if Shapes.hits_sphere sphere_centre 0.5 ray then
-    Color.mk (1., 0., 0.)
+  let sphere_centre = Vec3d.mk (0., 0., -1.) in
+  let sphere_hit_point = Shapes.hit_sphere sphere_centre 0.5 ray in
+  if sphere_hit_point > 0. then
+    let normal = Vec3d.(Ray.at sphere_hit_point ray - sphere_centre |> unit) in
+    Color.(0.5 * mk Vec3d.(c1 normal +. 1., c2 normal +. 1., c3 normal +. 1.))
   else
-  let unit_dir = Vec3d.unit ray.dir in
-  let blend_factor = 0.5 *. (Vec3d.c2 unit_dir +. 1.) in
-  Color.(
-    ((1. -. blend_factor) * mk (1., 1., 1.))
-    + (blend_factor * mk (0.5, 0.7, 1.0)))
+    let unit_dir = Vec3d.unit ray.dir in
+    let blend_factor = 0.5 *. (Vec3d.c2 unit_dir +. 1.) in
+    Color.(
+      ((1. -. blend_factor) * mk (1., 1., 1.))
+      + (blend_factor * mk (0.5, 0.7, 1.0)))
 
 let raytraced_image () =
   (* Image params *)
