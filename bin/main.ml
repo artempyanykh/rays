@@ -14,9 +14,14 @@ let sample_image () =
   in
   Image.create ~height ~width ~f
 
-let ray_color (world : Shapes.hittable) (ray : Ray.t) =
-  match world ray (Interval.mk 0. Float.infinity) with
-  | Some hit -> Color.(0.5 * (hit.normal.vec + mk (1., 1., 1.)))
+let rec ray_color depth (world : Shapes.hittable) (ray : Ray.t) =
+  if depth <= 0 then Color.black
+  else
+  match world ray (Interval.mk 0.001 Float.infinity) with
+  | Some hit ->
+      let bounce_dir = Vec3d.random_on_hemisphere ~normal:hit.normal.vec in
+      let bounce_ray = Ray.{ origin = hit.point; dir = bounce_dir } in
+      Color.(0.5 * ray_color (Int.sub depth 1) world bounce_ray)
   | None ->
       let unit_dir = Vec3d.unit ray.dir in
       let blend_factor = 0.5 *. (Vec3d.c2 unit_dir +. 1.) in
@@ -47,22 +52,22 @@ let raytraced_image () =
     let origin = Camera.center camera in
     Ray.{ origin; dir = Vec3d.(pixel_sample - origin) }
   in
+  let samples_per_pixel = 10 in
+  let bounce_depth = 10 in
   let render ~(row : int) ~(col : int) =
     let ray = sample_ray ~row ~col in
-    canvas.(row).(col) <- Color.(canvas.(row).(col) + ray_color world ray)
+    canvas.(row).(col) <- Color.(canvas.(row).(col) + ray_color bounce_depth world ray)
   in
-  let samples_per_pixel = 10 in
-      for row = 0 to Camera.img_height camera - 1 do
-        for col = 0 to Camera.img_width camera -1 do
-          for _ = 0 to samples_per_pixel - 1 do
-            render ~row ~col
-          done
+  for row = 0 to Camera.img_height camera - 1 do
+    for col = 0 to Camera.img_width camera - 1 do
+      for _ = 0 to samples_per_pixel - 1 do
+        render ~row ~col
       done
-    done;
+    done
+  done;
   Image.create ~height:(Camera.img_height camera)
     ~width:(Camera.img_width camera) ~f:(fun ~row ~col ->
-      Color.to_pixel ~samples:samples_per_pixel canvas.(row).(col)
-    )
+      Color.to_pixel ~samples:samples_per_pixel canvas.(row).(col))
 
 let () =
   let img = raytraced_image () in

@@ -70,6 +70,7 @@ module Vec3d : sig
   val length_square : t -> float
   val unit : t -> t
   val dot : t -> t -> float
+  val random_on_hemisphere : normal:t -> t
 end = struct
   type t = float * float * float
 
@@ -94,6 +95,21 @@ end = struct
   let length v = sqrt (length_square v)
   let unit v = v / length v
   let dot (a1, a2, a3) (b1, b2, b3) = (a1 *. b1) +. (a2 *. b2) +. (a3 *. b3)
+
+  let random ?(min = 0.) ?(max = 1.) () =
+    let max = max -. 0.00000001 in
+    let rand () = Random.float (max -. min) +. min in
+    mk (rand (), rand (), rand ())
+
+  let rec random_in_unit_sphere () =
+    let v = random ~min:(-1.) ~max:1. () in
+    if length_square v < 1. then v else random_in_unit_sphere ()
+
+  let random_unit () = unit (random_in_unit_sphere ())
+
+  let random_on_hemisphere ~normal =
+    let v = random_unit () in
+    if dot v normal > 0. then v else -v
 end
 
 module Point3d = Vec3d
@@ -110,9 +126,9 @@ module Color = struct
 
   let black = mk (0., 0., 0.)
 
-  let to_pixel ?(samples=1) t =
+  let to_pixel ?(samples = 1) t =
     let factor = 255.999 in
-    let r, g, b = raw ((factor * t) /! samples) in
+    let r, g, b = raw (factor * t /! samples) in
     Pixel.create (int_of_float r, int_of_float g, int_of_float b)
 end
 
