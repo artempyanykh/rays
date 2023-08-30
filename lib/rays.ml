@@ -62,6 +62,7 @@ module Vec3d : sig
   val c3 : t -> float
   val ( + ) : t -> t -> t
   val ( - ) : t -> t -> t
+  val ( ~- ) : t -> t
   val ( * ) : float -> t -> t
   val ( *! ) : int -> t -> t
   val ( / ) : t -> float -> t
@@ -84,6 +85,7 @@ end = struct
   let ( - ) (v11, v12, v13) (v21, v22, v23) =
     (v11 -. v21, v12 -. v22, v13 -. v23)
 
+  let ( ~- ) (a, b, c) = (-.a, -.b, -.c)
   let ( * ) s (v1, v2, v3) = (s *. v1, s *. v2, s *. v3)
   let ( *! ) is v = float_of_int is * v
   let ( / ) (v1, v2, v3) s = (v1 /. s, v2 /. s, v3 /. s)
@@ -112,12 +114,53 @@ module Color = struct
     Pixel.create (int_of_float r, int_of_float g, int_of_float b)
 end
 
-module Shapes = struct
-  let hit_sphere center radius Ray.{ origin; dir } =
-    let oc = Vec3d.(origin - center) in
-    let a = Vec3d.length_square dir in
-    let half_b = Vec3d.dot oc dir in
-    let c = Vec3d.length_square oc -. (radius *. radius) in
-    let discriminant = (half_b *. half_b) -. (a *. c) in
-    if discriminant >= 0. then (-.half_b -. sqrt discriminant) /. a else -1.
+module Shapes : sig
+  type face = Front | Back
+  type normal = { vec : Vec3d.t; face : face }
+  type hit = { point : Point3d.t; normal : normal; t : float }
+  type hittable = Ray.t -> tmin:float -> tmax:float -> hit option
+
+  val mk_sphere : Point3d.t -> float -> hittable
+  val mk_composite : hittable list -> hittable
+end = struct
+  type face = Front | Back
+  type normal = { vec : Vec3d.t; face : face }
+  type hit = { point : Point3d.t; normal : normal; t : float }
+  type hittable = Ray.t -> tmin:float -> tmax:float -> hit option
+
+  let mk_sphere center radius : hittable =
+    let r2 = radius *. radius in
+    fun (ray : Ray.t) ~tmin ~tmax ->
+      let oc = Vec3d.(ray.origin - center) in
+      let a = Vec3d.length_square ray.dir in
+      let half_b = Vec3d.dot oc ray.dir in
+      let c = Vec3d.length_square oc -. r2 in
+      let discriminant = (half_b *. half_b) -. (a *. c) in
+      if discriminant < 0. then None
+      else
+        let sqrtd = sqrt discriminant in
+        let mk_hit t =
+          let point = Ray.at t ray in
+          let outward_normal = Vec3d.((point - center) / radius) in
+          let normal =
+            if Vec3d.dot ray.dir outward_normal < 0. then
+              { vec = outward_normal; face = Front }
+            else { vec = Vec3d.(-outward_normal); face = Back }
+          in
+          { point; normal; t }
+        in
+        let root = (-.half_b -. sqrtd) /. a in
+        if root <= tmin || root >= tmax then
+          let root = (-.half_b +. sqrtd) /. a in
+          if root <= tmin || root >= tmax then None else Some (mk_hit root)
+        else Some (mk_hit root)
+
+  let mk_composite (objects : hittable list) : hittable =
+   fun ray ~tmin ~tmax ->
+    List.fold_left ~init:None objects ~f:(fun closest obj ->
+        let tmax =
+          Option.map (fun ({ t; _ } : hit) -> t) closest
+          |> Option.value ~default:tmax
+        in
+        match obj ray ~tmin ~tmax with None -> closest | hit -> hit)
 end
