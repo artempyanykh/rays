@@ -1,3 +1,4 @@
+open Stdlib.StdLabels
 open Rays
 
 let sample_image () =
@@ -36,15 +37,32 @@ let raytraced_image () =
         Shapes.mk_sphere (Point3d.mk (0., -100.5, -1.)) 100.;
       ]
   in
-  (* Render *)
-  let render ~(row : int) ~(col : int) =
-    let pixel_center = Camera.pixel_center ~row ~col camera in
-    let camera_center = Camera.center camera in
-    let ray_dir = Vec3d.(pixel_center - camera_center) in
-    let ray = Ray.{ origin = camera_center; dir = ray_dir } in
-    ray_color world ray |> Color.to_pixel
+  let canvas =
+    Array.make_matrix ~dimx:(Camera.img_height camera)
+      ~dimy:(Camera.img_width camera) Color.black
   in
-  Image.create ~height:(Camera.img_height camera) ~width:(Camera.img_width camera) ~f:render
+  (* Render *)
+  let sample_ray ~row ~col =
+    let pixel_sample = Camera.pixel_sample ~row ~col camera in
+    let origin = Camera.center camera in
+    Ray.{ origin; dir = Vec3d.(pixel_sample - origin) }
+  in
+  let render ~(row : int) ~(col : int) =
+    let ray = sample_ray ~row ~col in
+    canvas.(row).(col) <- Color.(canvas.(row).(col) + ray_color world ray)
+  in
+  let samples_per_pixel = 10 in
+      for row = 0 to Camera.img_height camera - 1 do
+        for col = 0 to Camera.img_width camera -1 do
+          for _ = 0 to samples_per_pixel - 1 do
+            render ~row ~col
+          done
+      done
+    done;
+  Image.create ~height:(Camera.img_height camera)
+    ~width:(Camera.img_width camera) ~f:(fun ~row ~col ->
+      Color.to_pixel ~samples:samples_per_pixel canvas.(row).(col)
+    )
 
 let () =
   let img = raytraced_image () in

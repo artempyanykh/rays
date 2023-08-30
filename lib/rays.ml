@@ -108,9 +108,11 @@ end
 module Color = struct
   include Vec3d
 
-  let to_pixel t =
+  let black = mk (0., 0., 0.)
+
+  let to_pixel ?(samples=1) t =
     let factor = 255.999 in
-    let r, g, b = raw (factor * t) in
+    let r, g, b = raw ((factor * t) /! samples) in
     Pixel.create (int_of_float r, int_of_float g, int_of_float b)
 end
 
@@ -122,6 +124,9 @@ module Interval = struct
   let mk tmin tmax = { tmin; tmax }
   let contains x { tmin; tmax } = tmin <= x && x <= tmax
   let surrounds x { tmin; tmax } = tmin < x && x < tmax
+
+  let clamp x { tmin; tmax } =
+    if x < tmin then tmin else if x > tmax then tmax else x
 end
 
 module Shapes : sig
@@ -186,6 +191,7 @@ module Camera : sig
   val aspect : t -> float
   val center : t -> Point3d.t
   val pixel_center : row:int -> col:int -> t -> Point3d.t
+  val pixel_sample : row:int -> col:int -> t -> Point3d.t
 end = struct
   type derived_state = {
     img_height : int;
@@ -233,6 +239,15 @@ end = struct
       camera.derived.pixel00
       + (col *! camera.derived.pixel_delta_lr)
       + (row *! camera.derived.pixel_delta_ud))
+
+  let pixel_sample ~row ~col camera =
+    let upper_bound = 0.999999 in
+    let px = -0.5 +. Random.float upper_bound in
+    let py = -0.5 +. Random.float upper_bound in
+    Vec3d.(
+      (px * camera.derived.pixel_delta_lr)
+      + (py * camera.derived.pixel_delta_ud)
+      + pixel_center ~row ~col camera)
 
   let img_width { img_width; _ } = img_width
   let img_height { derived = { img_height; _ }; _ } = img_height
