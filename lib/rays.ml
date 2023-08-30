@@ -114,11 +114,21 @@ module Color = struct
     Pixel.create (int_of_float r, int_of_float g, int_of_float b)
 end
 
+module Interval = struct
+  type t = { tmin : float; tmax : float }
+
+  let empty = { tmin = Float.infinity; tmax = Float.neg_infinity }
+  let universe = { tmin = Float.neg_infinity; tmax = Float.infinity }
+  let mk tmin tmax = { tmin; tmax }
+  let contains x { tmin; tmax } = tmin <= x && x <= tmax
+  let surrounds x { tmin; tmax } = tmin < x && x < tmax
+end
+
 module Shapes : sig
   type face = Front | Back
   type normal = { vec : Vec3d.t; face : face }
   type hit = { point : Point3d.t; normal : normal; t : float }
-  type hittable = Ray.t -> tmin:float -> tmax:float -> hit option
+  type hittable = Ray.t -> Interval.t -> hit option
 
   val mk_sphere : Point3d.t -> float -> hittable
   val mk_composite : hittable list -> hittable
@@ -126,11 +136,11 @@ end = struct
   type face = Front | Back
   type normal = { vec : Vec3d.t; face : face }
   type hit = { point : Point3d.t; normal : normal; t : float }
-  type hittable = Ray.t -> tmin:float -> tmax:float -> hit option
+  type hittable = Ray.t -> Interval.t -> hit option
 
   let mk_sphere center radius : hittable =
     let r2 = radius *. radius in
-    fun (ray : Ray.t) ~tmin ~tmax ->
+    fun (ray : Ray.t) (interval : Interval.t) ->
       let oc = Vec3d.(ray.origin - center) in
       let a = Vec3d.length_square ray.dir in
       let half_b = Vec3d.dot oc ray.dir in
@@ -150,17 +160,19 @@ end = struct
           { point; normal; t }
         in
         let root = (-.half_b -. sqrtd) /. a in
-        if root <= tmin || root >= tmax then
+        if Interval.surrounds root interval then Some (mk_hit root)
+        else
           let root = (-.half_b +. sqrtd) /. a in
-          if root <= tmin || root >= tmax then None else Some (mk_hit root)
-        else Some (mk_hit root)
+          if Interval.surrounds root interval then Some (mk_hit root) else None
 
   let mk_composite (objects : hittable list) : hittable =
-   fun ray ~tmin ~tmax ->
+   fun ray interval ->
     List.fold_left ~init:None objects ~f:(fun closest obj ->
         let tmax =
           Option.map (fun ({ t; _ } : hit) -> t) closest
-          |> Option.value ~default:tmax
+          |> Option.value ~default:interval.tmax
         in
-        match obj ray ~tmin ~tmax with None -> closest | hit -> hit)
+        match obj ray (Interval.mk interval.tmin tmax) with
+        | None -> closest
+        | hit -> hit)
 end

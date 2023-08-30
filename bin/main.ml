@@ -14,7 +14,7 @@ let sample_image () =
   Image.create ~height ~width ~f
 
 let ray_color (world : Shapes.hittable) (ray : Ray.t) =
-  match world ray ~tmin:0. ~tmax:Float.infinity with
+  match world ray (Interval.mk 0. Float.infinity) with
   | Some hit -> Color.(0.5 * (hit.normal.vec + mk (1., 1., 1.)))
   | None ->
       let unit_dir = Vec3d.unit ray.dir in

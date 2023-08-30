@@ -17,3 +17,7 @@ main-watch:
 .PHONY: test-watch
 test-watch:
 	dune runtest --watch --auto-promote
+
+.PNOHY: fmt
+fmt:
+	dune build @fmt
