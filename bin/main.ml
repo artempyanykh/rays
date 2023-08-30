@@ -27,7 +27,7 @@ let raytraced_image () =
   (* Image params *)
   let aspect_ratio = 16. /. 9. in
   let image_width = 400 in
-  let image_height = float_of_int image_width /. aspect_ratio |> int_of_float in
+  let camera = Camera.mk aspect_ratio image_width in
   (* World *)
   let world =
     Shapes.mk_composite
@@ -36,39 +36,15 @@ let raytraced_image () =
         Shapes.mk_sphere (Point3d.mk (0., -100.5, -1.)) 100.;
       ]
   in
-  (* Camera params *)
-  let focal_length = 1. in
-  let viewport_height = 2. in
-  let viewport_width =
-    viewport_height *. float_of_int image_width /. float_of_int image_height
-  in
-  let camera_center = Vec3d.mk (0., 0., 0.) in
-  (* Vectors along viewport dimensions *)
-  let viewport_lr = Vec3d.mk (viewport_width, 0., 0.) in
-  let viewport_ud = Vec3d.mk (0., -.viewport_height, 0.) in
-  (* Delta vectors from pixel to pixel *)
-  let pixel_delta_lr = Vec3d.(viewport_lr /! image_width) in
-  let pixel_delta_ud = Vec3d.(viewport_ud /! image_height) in
-  (* Coord of upper left pixel *)
-  let viewport_upper_left =
-    Vec3d.(
-      camera_center
-      - mk (0., 0., focal_length)
-      - (viewport_lr / 2.) - (viewport_ud / 2.))
-  in
-  let pixel00_loc =
-    Vec3d.(viewport_upper_left + (0.5 * (pixel_delta_lr + pixel_delta_ud)))
-  in
   (* Render *)
   let render ~(row : int) ~(col : int) =
-    let pixel_center =
-      Vec3d.(pixel00_loc + (col *! pixel_delta_lr) + (row *! pixel_delta_ud))
-    in
+    let pixel_center = Camera.pixel_center ~row ~col camera in
+    let camera_center = Camera.center camera in
     let ray_dir = Vec3d.(pixel_center - camera_center) in
     let ray = Ray.{ origin = camera_center; dir = ray_dir } in
     ray_color world ray |> Color.to_pixel
   in
-  Image.create ~height:image_height ~width:image_width ~f:render
+  Image.create ~height:(Camera.img_height camera) ~width:(Camera.img_width camera) ~f:render
 
 let () =
   let img = raytraced_image () in

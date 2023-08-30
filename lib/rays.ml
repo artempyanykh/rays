@@ -176,3 +176,66 @@ end = struct
         | None -> closest
         | hit -> hit)
 end
+
+module Camera : sig
+  type t
+
+  val mk : float -> int -> t
+  val img_width : t -> int
+  val img_height : t -> int
+  val aspect : t -> float
+  val center : t -> Point3d.t
+  val pixel_center : row:int -> col:int -> t -> Point3d.t
+end = struct
+  type derived_state = {
+    img_height : int;
+    pixel00 : Point3d.t;
+    pixel_delta_lr : Vec3d.t;
+    pixel_delta_ud : Vec3d.t;
+  }
+
+  type t = {
+    aspect : float;
+    img_width : int;
+    center : Point3d.t;
+    derived : derived_state;
+  }
+
+  let mk aspect img_width =
+    let img_height = float_of_int img_width /. aspect |> int_of_float in
+    let focal_length = 1. in
+    let viewport_height = 2. in
+    let viewport_width =
+      viewport_height *. float_of_int img_width /. float_of_int img_height
+    in
+    let camera_center = Vec3d.mk (0., 0., 0.) in
+    (* Vectors along viewport dimensions *)
+    let viewport_lr = Vec3d.mk (viewport_width, 0., 0.) in
+    let viewport_ud = Vec3d.mk (0., -.viewport_height, 0.) in
+    (* Delta vectors from pixel to pixel *)
+    let pixel_delta_lr = Vec3d.(viewport_lr /! img_width) in
+    let pixel_delta_ud = Vec3d.(viewport_ud /! img_height) in
+    (* Coord of upper left pixel *)
+    let viewport_upper_left =
+      Vec3d.(
+        camera_center
+        - mk (0., 0., focal_length)
+        - (viewport_lr / 2.) - (viewport_ud / 2.))
+    in
+    let pixel00 =
+      Vec3d.(viewport_upper_left + (0.5 * (pixel_delta_lr + pixel_delta_ud)))
+    in
+    let derived = { img_height; pixel00; pixel_delta_lr; pixel_delta_ud } in
+    { aspect; img_width; center = camera_center; derived }
+
+  let pixel_center ~row ~col camera =
+    Point3d.(
+      camera.derived.pixel00
+      + (col *! camera.derived.pixel_delta_lr)
+      + (row *! camera.derived.pixel_delta_ud))
+
+  let img_width { img_width; _ } = img_width
+  let img_height { derived = { img_height; _ }; _ } = img_height
+  let aspect { aspect; _ } = aspect
+  let center { center; _ } = center
+end
