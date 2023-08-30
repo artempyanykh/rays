@@ -70,6 +70,7 @@ module Vec3d : sig
   val length_square : t -> float
   val unit : t -> t
   val dot : t -> t -> float
+  val random_unit : unit -> t
   val random_on_hemisphere : normal:t -> t
 end = struct
   type t = float * float * float

@@ -17,17 +17,20 @@ let sample_image () =
 let rec ray_color depth (world : Shapes.hittable) (ray : Ray.t) =
   if depth <= 0 then Color.black
   else
-  match world ray (Interval.mk 0.001 Float.infinity) with
-  | Some hit ->
-      let bounce_dir = Vec3d.random_on_hemisphere ~normal:hit.normal.vec in
-      let bounce_ray = Ray.{ origin = hit.point; dir = bounce_dir } in
-      Color.(0.5 * ray_color (Int.sub depth 1) world bounce_ray)
-  | None ->
-      let unit_dir = Vec3d.unit ray.dir in
-      let blend_factor = 0.5 *. (Vec3d.c2 unit_dir +. 1.) in
-      Color.(
-        ((1. -. blend_factor) * mk (1., 1., 1.))
-        + (blend_factor * mk (0.5, 0.7, 1.0)))
+    match world ray (Interval.mk 0.001 Float.infinity) with
+    | Some hit ->
+        (* Uniform ray reflection *)
+        (* let bounce_dir = Vec3d.random_on_hemisphere ~normal:hit.normal.vec in *)
+        (* Lambertian reflection *)
+        let bounce_dir = Vec3d.(hit.normal.vec + random_unit ()) in
+        let bounce_ray = Ray.{ origin = hit.point; dir = bounce_dir } in
+        Color.(0.5 * ray_color (Int.sub depth 1) world bounce_ray)
+    | None ->
+        let unit_dir = Vec3d.unit ray.dir in
+        let blend_factor = 0.5 *. (Vec3d.c2 unit_dir +. 1.) in
+        Color.(
+          ((1. -. blend_factor) * mk (1., 1., 1.))
+          + (blend_factor * mk (0.5, 0.7, 1.0)))
 
 let raytraced_image () =
   (* Image params *)
@@ -56,7 +59,8 @@ let raytraced_image () =
   let bounce_depth = 10 in
   let render ~(row : int) ~(col : int) =
     let ray = sample_ray ~row ~col in
-    canvas.(row).(col) <- Color.(canvas.(row).(col) + ray_color bounce_depth world ray)
+    canvas.(row).(col) <-
+      Color.(canvas.(row).(col) + ray_color bounce_depth world ray)
   in
   for row = 0 to Camera.img_height camera - 1 do
     for col = 0 to Camera.img_width camera - 1 do
